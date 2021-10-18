@@ -1,21 +1,28 @@
 package androidovshchik.tg.sms.local
 
-import androidx.room.*
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
 
 @Dao
 internal abstract class ChatDao {
 
     @Query(
         """
-        SELECT * FROM tokens
-        ORDER BY t_id ASC
+        SELECT * FROM chats
+        ORDER BY c_last_sms_id ASC
     """
     )
-    abstract fun getAll(): List<Chat>
+    abstract fun selectAll(): List<Chat>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    abstract suspend fun insert(item: Chat): Long
+    abstract fun insert(item: Chat): Long
 
-    @Delete
-    abstract fun delete(items: List<Chat>)
+    @Query(
+        """
+        DELETE FROM chats
+    """
+    )
+    abstract fun deleteAll()
 }

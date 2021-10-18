@@ -1,0 +1,40 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "667193cef94b935c84831a04308111f7",
+    "entities": [
+      {
+        "tableName": "chats",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`c_id` INTEGER NOT NULL, `c_last_sms_id` INTEGER NOT NULL, PRIMARY KEY(`c_id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "c_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastSmsId",
+            "columnName": "c_last_sms_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "columnNames": [
+            "c_id"
+          ],
+          "autoGenerate": false
+        },
+        "indices": [],
+        "foreignKeys": []
+      }
+    ],
+    "views": [],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '667193cef94b935c84831a04308111f7')"
+    ]
+  }
+}

@@ -7,12 +7,10 @@ import androidx.room.PrimaryKey
 @Entity(
     tableName = "chats"
 )
-internal class Chat {
-
+internal class Chat(
     @PrimaryKey
     @ColumnInfo(name = "c_id")
-    var id = 0L
-
+    var id: Long = 0L,
     @ColumnInfo(name = "c_last_sms_id")
-    var lastSmsId = 0
-}
+    var lastSmsId: Int = 0
+)
