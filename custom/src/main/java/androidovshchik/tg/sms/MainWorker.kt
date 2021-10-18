@@ -7,6 +7,7 @@ import androidx.work.*
 import com.pengrad.telegrambot.TelegramBot
 import com.pengrad.telegrambot.request.GetUpdates
 import com.pengrad.telegrambot.request.SendMessage
+import timber.log.Timber
 import java.util.concurrent.TimeUnit
 
 class MainWorker(appContext: Context, workerParams: WorkerParameters): Worker(appContext, workerParams) {
@@ -30,7 +31,7 @@ class MainWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
                     val request = GetUpdates()
                         .limit(100)
                         .offset(preferences.lastUpdateId + 1)
-                        .timeout(TimeUnit.MINUTES.toMillis(5).toInt())
+                        .timeout(TimeUnit.MINUTES.toMillis(1).toInt())
                     val updates = bot.execute(request).updates()
                     if (updates.isEmpty()) {
                         break
@@ -45,7 +46,7 @@ class MainWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
                         preferences.lastUpdateId = it.updateId()
                     }
                 } catch (e: Throwable) {
-
+                    Timber.e(e)
                 }
             }
             for (chat in chats) {
@@ -53,17 +54,25 @@ class MainWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
                     break
                 }
                 do {
-                    if (chat.lastSmsId) {
+                    val id = it.getInt(it.getColumnIndexOrThrow(Sms._ID))
+                    if (chat.lastSmsId > id) {
                         continue
                     }
                     try {
+                        val address = it.getString(it.getColumnIndexOrThrow(Sms.ADDRESS))
+                        val body = it.getString(it.getColumnIndexOrThrow(Sms.BODY))
+                        val date = it.getLong(it.getColumnIndexOrThrow(Sms.DATE))
                         val response = bot.execute(SendMessage(chat.id, """
-                            
+                            $address $date
+                            ```$body```
                         """.trimIndent()))
                         if (response.isOk) {
-                            db.chatDao().updateChat(chat.id, )
+                            db.chatDao().update(chat.apply {
+                                lastSmsId = id + 1
+                            })
                         }
                     } catch (e: Throwable) {
+                        Timber.e(e)
                         break
                     }
                 } while (it.moveToNext())

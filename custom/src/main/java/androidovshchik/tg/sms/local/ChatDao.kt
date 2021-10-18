@@ -1,9 +1,6 @@
 package androidovshchik.tg.sms.local
 
-import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
-import androidx.room.Query
+import androidx.room.*
 
 @Dao
 internal abstract class ChatDao {
@@ -17,16 +14,10 @@ internal abstract class ChatDao {
     abstract fun selectAll(): MutableList<Chat>
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    abstract fun insert(item: Chat): Long
+    abstract fun insert(item: Chat)
 
-    @Query(
-        """
-        UPDATE chats
-        SET c_last_sms_id = :chatId
-        WHERE c_id = :id
-    """
-    )
-    abstract fun updateChat(id: Long, chatId: Int)
+    @Update(onConflict = OnConflictStrategy.IGNORE)
+    abstract fun update(item: Chat)
 
     @Query(
         """
