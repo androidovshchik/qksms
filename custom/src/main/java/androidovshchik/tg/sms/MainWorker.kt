@@ -2,6 +2,7 @@ package androidovshchik.tg.sms
 
 import android.content.Context
 import android.provider.Telephony.Sms
+import androidovshchik.tg.sms.local.Chat
 import androidovshchik.tg.sms.local.Preferences
 import androidx.work.*
 import com.pengrad.telegrambot.TelegramBot
@@ -16,14 +17,14 @@ class MainWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
         val chats = db.chatDao().selectAll()
         val preferences = Preferences(applicationContext)
         val minSmsId = (chats.firstOrNull()?.lastSmsId ?: preferences.lastSmsId).toString()
-        contentResolver.query(Sms.Inbox.CONTENT_URI, null, "${Sms._ID} >= ?", arrayOf(minSmsId), "${Sms._ID} ASC")?.use {
+        contentResolver.query(Sms.Inbox.CONTENT_URI, null, "${Sms._ID} >= ?", arrayOf(minSmsId), "${Sms._ID} ASC")?.use { cursor ->
             if (!it.moveToLast()) {
-                return@with Result.success()
+                return@with Result.failure()
             }
             preferences.lastSmsId = it.getInt(it.getColumnIndexOrThrow(Sms._ID)) + 1
             val token = preferences.botToken?.trim()
             if (token.isNullOrBlank()) {
-                return@with Result.success()
+                return@with Result.failure()
             }
             val bot = TelegramBot(token)
             while (true) {
@@ -39,7 +40,9 @@ class MainWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
                     val code = preferences.authCode
                     updates.forEach {
                         if (it.message().text().trim() == code) {
-                            //preferences.allowedChats.add(it.message().chat().id().toString())
+                            val chat = Chat(it.message().chat().id(), )
+                            chats.add(chat)
+                            db.chatDao().insert(chat)
                         }
                     }
                     updates.lastOrNull()?.let {
@@ -54,21 +57,21 @@ class MainWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
                     break
                 }
                 do {
-                    val id = it.getInt(it.getColumnIndexOrThrow(Sms._ID))
-                    if (chat.lastSmsId > id) {
-                        continue
-                    }
                     try {
-                        val address = it.getString(it.getColumnIndexOrThrow(Sms.ADDRESS))
-                        val body = it.getString(it.getColumnIndexOrThrow(Sms.BODY))
-                        val date = it.getLong(it.getColumnIndexOrThrow(Sms.DATE))
+                        val id = cursor.getInt(cursor.getColumnIndexOrThrow(Sms._ID))
+                        if (chat.lastSmsId > id) {
+                            continue
+                        }
+                        val address = cursor.getString(cursor.getColumnIndexOrThrow(Sms.ADDRESS))
+                        val body = cursor.getString(cursor.getColumnIndexOrThrow(Sms.BODY))
+                        val date = cursor.getLong(cursor.getColumnIndexOrThrow(Sms.DATE))
                         val response = bot.execute(SendMessage(chat.id, """
                             $address $date
                             ```$body```
                         """.trimIndent()))
                         if (response.isOk) {
-                            db.chatDao().update(chat.apply {
-                                lastSmsId = id + 1
+                            db.chatDao().update(chat.also {
+                                it.lastSmsId = id + 1
                             })
                         }
                     } catch (e: Throwable) {
