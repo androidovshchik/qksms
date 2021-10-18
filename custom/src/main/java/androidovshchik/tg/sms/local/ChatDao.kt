@@ -14,10 +14,19 @@ internal abstract class ChatDao {
         ORDER BY c_last_sms_id ASC
     """
     )
-    abstract fun selectAll(): List<Chat>
+    abstract fun selectAll(): MutableList<Chat>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     abstract fun insert(item: Chat): Long
+
+    @Query(
+        """
+        UPDATE chats
+        SET c_last_sms_id = :chatId
+        WHERE c_id = :id
+    """
+    )
+    abstract fun updateChat(id: Long, chatId: Int)
 
     @Query(
         """

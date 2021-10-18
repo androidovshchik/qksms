@@ -6,6 +6,7 @@ import androidovshchik.tg.sms.local.Preferences
 import androidx.work.*
 import com.pengrad.telegrambot.TelegramBot
 import com.pengrad.telegrambot.request.GetUpdates
+import com.pengrad.telegrambot.request.SendMessage
 import java.util.concurrent.TimeUnit
 
 class MainWorker(appContext: Context, workerParams: WorkerParameters): Worker(appContext, workerParams) {
@@ -24,37 +25,48 @@ class MainWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
                 return@with Result.success()
             }
             val bot = TelegramBot(token)
-            while () {
-                val getUpdates = GetUpdates()
-                    .limit(100)
-                    .offset(preferences.lastUpdateId + 1)
-                    .timeout(TimeUnit.MINUTES.toMillis(5).toInt())
-                val updates = bot.execute(getUpdates).updates()
-                val code = preferences.authCode
-                updates.forEach {
-                    if (it.message().text().trim() == code) {
-                        //preferences.allowedChats.add(it.message().chat().id().toString())
+            while (true) {
+                try {
+                    val request = GetUpdates()
+                        .limit(100)
+                        .offset(preferences.lastUpdateId + 1)
+                        .timeout(TimeUnit.MINUTES.toMillis(5).toInt())
+                    val updates = bot.execute(request).updates()
+                    if (updates.isEmpty()) {
+                        break
                     }
-                }
-                updates.lastOrNull()?.let {
-                    preferences.lastUpdateId = it.updateId()
+                    val code = preferences.authCode
+                    updates.forEach {
+                        if (it.message().text().trim() == code) {
+                            //preferences.allowedChats.add(it.message().chat().id().toString())
+                        }
+                    }
+                    updates.lastOrNull()?.let {
+                        preferences.lastUpdateId = it.updateId()
+                    }
+                } catch (e: Throwable) {
+
                 }
             }
-            it.moveToFirst()
-            while (it.moveToNext()) {
-                for (chat in chats) {
+            for (chat in chats) {
+                if (!it.moveToFirst()) {
+                    break
+                }
+                do {
                     if (chat.lastSmsId) {
                         continue
                     }
                     try {
-                        val getUpdates = GetUpdates()
-                            .limit(100)
-                            .offset(preferences.lastUpdateId + 1)
-                            .timeout(TimeUnit.MINUTES.toMillis(5).toInt())
-                        val updates = bot.execute(getUpdates).updates()
+                        val response = bot.execute(SendMessage(chat.id, """
+                            
+                        """.trimIndent()))
+                        if (response.isOk) {
+                            db.chatDao().updateChat(chat.id, )
+                        }
                     } catch (e: Throwable) {
+                        break
                     }
-                }
+                } while (it.moveToNext())
             }
         }
         return Result.success()
