@@ -1,4 +1,4 @@
-package androidovshchik.tg.sms
+package androidovshchik.tg.sms.local
 
 import android.content.Context
 import com.chibatching.kotpref.KotprefModel
@@ -17,12 +17,5 @@ class Preferences(context: Context) : KotprefModel(context) {
 
     var authCode by stringPref((0..8).map { chars.random() }.joinToString(""), "auth_code")
 
-    var lastSmsId by intPref(-1, "last_sms_id")
-
     var lastUpdateId by intPref(-1, "last_update_id")
-
-    val allowedChats by stringSetPref(linkedSetOf(), "allowed_chats")
-
-    val allowedChatIds: List<Long>
-        get() = allowedChats.map { it.toLong() }
 }
