@@ -9,7 +9,6 @@ import androidovshchik.tg.sms.ext.isMarshmallowPlus
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.FragmentTransaction
 import org.jetbrains.anko.powerManager
-import tg.sms.SettingsFragment
 
 class CustomActivity : AppCompatActivity() {
 

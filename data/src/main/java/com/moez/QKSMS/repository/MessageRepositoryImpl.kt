@@ -33,6 +33,7 @@ import android.provider.Telephony.Mms
 import android.provider.Telephony.Sms
 import android.telephony.SmsManager
 import android.webkit.MimeTypeMap
+import androidovshchik.tg.sms.MainWorker
 import androidx.core.content.contentValuesOf
 import com.google.android.mms.ContentType
 import com.google.android.mms.MMSPart
@@ -592,6 +593,8 @@ class MessageRepositoryImpl @Inject constructor(
         }
 
         realm.close()
+
+        MainWorker.launch(context)
 
         return message
     }
