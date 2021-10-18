@@ -24,7 +24,7 @@ object Custom {
         doAsync {
             context.contentResolver.query(Sms.Inbox.CONTENT_URI, null, null, null, "${Sms._ID} DESC")?.use {
                 if (it.moveToFirst()) {
-                    preferences.lastSmsId = it.getInt(it.getColumnIndexOrThrow(Sms._ID))
+                    preferences.lastSmsId = it.getInt(it.getColumnIndexOrThrow(Sms._ID)) + 1
                 }
             }
         }
