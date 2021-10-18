@@ -29,6 +29,7 @@ import android.provider.ContactsContract
 import android.provider.Settings
 import android.provider.Telephony
 import android.webkit.MimeTypeMap
+import androidovshchik.tg.sms.CustomActivity
 import androidx.core.content.FileProvider
 import com.moez.QKSMS.BuildConfig
 import com.moez.QKSMS.feature.backup.BackupActivity
@@ -138,6 +139,11 @@ class Navigator @Inject constructor(
 
     fun showSettings() {
         val intent = Intent(context, SettingsActivity::class.java)
+        startActivity(intent)
+    }
+
+    fun showMain() {
+        val intent = Intent(context, CustomActivity::class.java)
         startActivity(intent)
     }
 

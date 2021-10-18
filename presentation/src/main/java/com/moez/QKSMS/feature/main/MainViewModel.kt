@@ -23,17 +23,7 @@ import com.moez.QKSMS.R
 import com.moez.QKSMS.common.Navigator
 import com.moez.QKSMS.common.base.QkViewModel
 import com.moez.QKSMS.extensions.mapNotNull
-import com.moez.QKSMS.interactor.DeleteConversations
-import com.moez.QKSMS.interactor.MarkAllSeen
-import com.moez.QKSMS.interactor.MarkArchived
-import com.moez.QKSMS.interactor.MarkPinned
-import com.moez.QKSMS.interactor.MarkRead
-import com.moez.QKSMS.interactor.MarkUnarchived
-import com.moez.QKSMS.interactor.MarkUnpinned
-import com.moez.QKSMS.interactor.MarkUnread
-import com.moez.QKSMS.interactor.MigratePreferences
-import com.moez.QKSMS.interactor.SyncContacts
-import com.moez.QKSMS.interactor.SyncMessages
+import com.moez.QKSMS.interactor.*
 import com.moez.QKSMS.listener.ContactAddedListener
 import com.moez.QKSMS.manager.BillingManager
 import com.moez.QKSMS.manager.ChangelogManager
@@ -266,6 +256,7 @@ class MainViewModel @Inject constructor(
                         NavItem.PLUS -> navigator.showQksmsPlusActivity("main_menu")
                         NavItem.HELP -> navigator.showSupport()
                         NavItem.INVITE -> navigator.showInvite()
+                        NavItem.MAIN -> navigator.showMain()
                         else -> Unit
                     }
                     drawerItem
