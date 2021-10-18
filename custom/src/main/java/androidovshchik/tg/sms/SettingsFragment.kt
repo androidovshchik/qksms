@@ -14,10 +14,13 @@ class SettingsFragment : PreferenceFragmentCompat() {
         val authCode = preferenceManager.findPreference<EditTextPreference>("auth_code")
         authCode?.text = preferences.authCode
         authCode?.setOnPreferenceChangeListener { _, newValue ->
-            if (preferences.authCode != newValue) {
-                preferences.authCode = newValue.toString().trim()
+            val value = newValue.toString().trim()
+            if (preferences.authCode != value) {
+                preferences.authCode = value
+                authCode.text = value
                 doAsync {
                     db.chatDao().deleteAll()
+                    MainWorker.cancel(requireContext())
                 }
             }
             false
