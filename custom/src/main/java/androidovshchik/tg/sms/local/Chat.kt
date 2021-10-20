@@ -13,4 +13,9 @@ internal class Chat(
     var id: Long = 0L,
     @ColumnInfo(name = "c_last_sms_id")
     var lastSmsId: Int = 0
-)
+) {
+
+    override fun toString(): String {
+        return "Chat(id=$id, lastSmsId=$lastSmsId)"
+    }
+}

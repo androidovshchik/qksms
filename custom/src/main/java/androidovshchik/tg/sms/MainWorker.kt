@@ -15,13 +15,18 @@ class MainWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
 
     override fun doWork(): Result = with(applicationContext) {
         val chats = db.chatDao().selectAll()
+        Timber.d(chats.toString())
         val preferences = Preferences(applicationContext)
-        val minSmsId = (chats.firstOrNull()?.lastSmsId ?: preferences.lastSmsId).toString()
+        var lastSmsId = preferences.lastSmsId
+        Timber.d("Preferences lastSmsId is $lastSmsId")
+        val minSmsId = (chats.firstOrNull()?.lastSmsId ?: lastSmsId).toString()
         contentResolver.query(Sms.Inbox.CONTENT_URI, null, "${Sms._ID} >= ?", arrayOf(minSmsId), "${Sms._ID} ASC")?.use { cursor ->
             if (!cursor.moveToLast()) {
-                return@with Result.failure()
+                Timber.d("No new sms was found")
+                return@with Result.success()
             }
-            val lastSmsId = cursor.getInt(cursor.getColumnIndexOrThrow(Sms._ID)) + 1
+            lastSmsId = cursor.getInt(cursor.getColumnIndexOrThrow(Sms._ID)) + 1
+            Timber.d("ContentProvider lastSmsId is $lastSmsId")
             preferences.lastSmsId = lastSmsId
             val token = preferences.botToken?.trim()
             if (token.isNullOrBlank()) {
@@ -30,6 +35,7 @@ class MainWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
             val bot = TelegramBot(token)
             val code = preferences.authCode.trim()
             var lastUpdateId = preferences.lastUpdateId
+            Timber.d("lastUpdateId is $lastUpdateId")
             while (true) {
                 try {
                     val request = GetUpdates()
@@ -38,14 +44,17 @@ class MainWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
                         .timeout(TimeUnit.MINUTES.toMillis(1).toInt())
                     val updates = bot.execute(request).updates()
                     if (updates.isEmpty()) {
+                        Timber.d("No new messages was found")
                         break
                     }
                     updates.forEach { upd ->
+                        Timber.d(upd.toString())
                         if (upd.message().text().trim() == code) {
                             val chatId = upd.message().chat().id()
                             if (!chats.any { it.id == chatId }) {
                                 val chat = Chat(chatId, lastSmsId)
                                 chats.add(chat)
+                                Timber.d(chat.toString())
                                 db.chatDao().insert(chat)
                             }
                         }
@@ -53,6 +62,7 @@ class MainWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
                     updates.lastOrNull()?.let {
                         lastUpdateId = it.updateId()
                         preferences.lastUpdateId = lastUpdateId
+                        Timber.d("New lastUpdateId is $lastUpdateId")
                     }
                 } catch (e: Throwable) {
                     Timber.e(e)
@@ -66,7 +76,9 @@ class MainWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
                 do {
                     try {
                         val smsId = cursor.getInt(cursor.getColumnIndexOrThrow(Sms._ID))
+                        Timber.d("Processing of smsId $smsId")
                         if (chat.lastSmsId > smsId) {
+                            Timber.d("Skipping lastSmsId is ${chat.lastSmsId}")
                             continue
                         }
                         val address = cursor.getString(cursor.getColumnIndexOrThrow(Sms.ADDRESS))
@@ -80,6 +92,7 @@ class MainWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
                             db.chatDao().update(chat.also {
                                 it.lastSmsId = smsId + 1
                             })
+                            Timber.d("Updating $chat")
                         }
                     } catch (e: Throwable) {
                         Timber.e(e)
