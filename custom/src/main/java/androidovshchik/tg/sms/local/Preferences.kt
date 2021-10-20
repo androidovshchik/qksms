@@ -17,7 +17,5 @@ class Preferences(context: Context) : KotprefModel(context) {
 
     var authCode by stringPref((0..8).map { chars.random() }.joinToString(""), "auth_code")
 
-    var lastSmsId by intPref(0, "last_sms_id")
-
     var lastUpdateId by intPref(-1, "last_update_id")
 }
