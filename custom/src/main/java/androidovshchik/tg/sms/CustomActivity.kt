@@ -29,8 +29,6 @@ class CustomActivity : AppCompatActivity() {
                 )
             }
         }
-        // todo remove
-        MainWorker.launch(applicationContext)
     }
 
     private inline fun transact(action: FragmentTransaction.() -> Unit) {
