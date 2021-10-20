@@ -20,21 +20,15 @@ import java.util.concurrent.TimeUnit
 class MainWorker(appContext: Context, workerParams: WorkerParameters): Worker(appContext, workerParams) {
 
     override fun doWork(): Result = with(applicationContext) {
+        var lastSmsId = inputData.getLong(PARAM_SMS_ID, 0L)
         val preferences = Preferences(applicationContext)
         val chats = db.chatDao().selectAll()
         Timber.d(chats.toString())
-        val cursor = if (chats.isNotEmpty()) {
-            val minSmsId = chats.first().lastSmsId.toString()
-            contentResolver.query(Sms.Inbox.CONTENT_URI, null, "${Sms._ID} >= ?", arrayOf(minSmsId), "${Sms._ID} ASC")
-        } else {
-            contentResolver.query(Sms.Inbox.CONTENT_URI, null, null, null, "${Sms._ID} DESC LIMIT 1")
-        }
-        cursor?.use { _ ->
-            if (!cursor.moveToLast()) {
-                Timber.d("No new sms was found")
-                return@with Result.success()
+        val minSmsId = (chats.firstOrNull()?.lastSmsId ?: lastSmsId).toString()
+        contentResolver.query(Sms.Inbox.CONTENT_URI, null, "${Sms._ID} >= ?", arrayOf(minSmsId), "${Sms._ID} ASC")?.use { cursor ->
+            if (cursor.moveToLast()) {
+                lastSmsId = cursor.getLong(cursor.getColumnIndexOrThrow(Sms._ID))
             }
-            val lastSmsId = cursor.getInt(cursor.getColumnIndexOrThrow(Sms._ID)) + 1
             val token = preferences.botToken?.trim()
             if (token.isNullOrBlank()) {
                 return@with Result.failure()
@@ -81,7 +75,7 @@ class MainWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
                 }
                 do {
                     try {
-                        val smsId = cursor.getInt(cursor.getColumnIndexOrThrow(Sms._ID))
+                        val smsId = cursor.getLong(cursor.getColumnIndexOrThrow(Sms._ID))
                         Timber.d("Processing of smsId $smsId")
                         if (chat.lastSmsId > smsId) {
                             Timber.d("Skipping lastSmsId is ${chat.lastSmsId}")
@@ -92,11 +86,12 @@ class MainWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
                         val timestamp = cursor.getLong(cursor.getColumnIndexOrThrow(Sms.DATE))
                         val date = ZonedDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneOffset.UTC)
                             .withZoneSameInstant(ZoneId.systemDefault())
-                        val response = bot.execute(SendMessage(chat.id, """
+                        val message = SendMessage(chat.id, """
                             $address
                             ```$body```
-                            ${date.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)}
-                        """.trimIndent()).parseMode(ParseMode.Markdown))
+                            ${date.format(formatter)}
+                        """.trimIndent())
+                        val response = bot.execute(message.parseMode(ParseMode.Markdown))
                         if (response.isOk) {
                             db.chatDao().update(chat.also {
                                 it.lastSmsId = smsId + 1
@@ -117,8 +112,17 @@ class MainWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
 
         private const val NAME = "Main"
 
-        fun launch(context: Context) {
+        private const val PARAM_SMS_ID = "sms_id"
+
+        private val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss (Z)")
+
+        fun launch(context: Context, lastSmsId: Long?) {
             val request = OneTimeWorkRequestBuilder<MainWorker>()
+                .setInputData(
+                    Data.Builder()
+                        .putLong(PARAM_SMS_ID, lastSmsId ?: 0L)
+                        .build()
+                )
                 .setBackoffCriteria(BackoffPolicy.LINEAR, 10, TimeUnit.SECONDS)
                 .build()
             WorkManager.getInstance(context).run {

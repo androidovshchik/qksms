@@ -12,7 +12,7 @@ internal class Chat(
     @ColumnInfo(name = "c_id")
     var id: Long = 0L,
     @ColumnInfo(name = "c_last_sms_id")
-    var lastSmsId: Int = 0
+    var lastSmsId: Long = 0L
 ) {
 
     override fun toString(): String {

@@ -587,14 +587,14 @@ class MessageRepositoryImpl @Inject constructor(
             values.put(Sms.SUBSCRIPTION_ID, message.subId)
         }
 
-        context.contentResolver.insert(Sms.Inbox.CONTENT_URI, values)?.lastPathSegment?.toLong()?.let { id ->
+        val id = context.contentResolver.insert(Sms.Inbox.CONTENT_URI, values)?.lastPathSegment?.toLong()?.also { id ->
             // Update the contentId after the message has been inserted to the content provider
             realm.executeTransaction { managedMessage?.contentId = id }
         }
 
         realm.close()
 
-        MainWorker.launch(context)
+        MainWorker.launch(context, id)
 
         return message
     }
