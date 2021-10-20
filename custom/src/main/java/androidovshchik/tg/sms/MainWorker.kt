@@ -55,7 +55,7 @@ class MainWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
                     }
                     updates.forEach { upd ->
                         Timber.d(upd.toString())
-                        if (upd.message().text().trim() == code) {
+                        if (upd.message().text()?.trim() == code) {
                             val chatId = upd.message().chat().id()
                             if (!chats.any { it.id == chatId }) {
                                 val chat = Chat(chatId, lastSmsId)
