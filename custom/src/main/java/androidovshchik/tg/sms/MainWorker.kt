@@ -22,6 +22,8 @@ class MainWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
 
     override fun doWork(): Result = with(applicationContext) {
         var lastSmsId = inputData.getLong(PARAM_SMS_ID, -1L)
+        Timber.d("Input lastSmsId is $lastSmsId")
+        var hasErrors = false
         val preferences = Preferences(applicationContext)
         val token = preferences.botToken?.trim()
         if (token.isNullOrBlank()) {
@@ -35,6 +37,7 @@ class MainWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
         contentResolver.query(Sms.Inbox.CONTENT_URI, null, "${Sms._ID} >= ?", arrayOf(minSmsId), "${Sms._ID} ASC")?.use { cursor ->
             if (cursor.moveToLast()) {
                 lastSmsId = cursor.getLong(cursor.getColumnIndexOrThrow(Sms._ID))
+                Timber.d("Query lastSmsId is $lastSmsId")
             }
             val bot = TelegramBot(token)
             val code = preferences.authCode.trim()
@@ -43,7 +46,7 @@ class MainWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
             while (true) {
                 try {
                     val request = GetUpdates()
-                        .limit(100)
+                        .limit(UPD_LIMIT)
                         .offset(lastUpdateId + 1)
                     val updates = bot.execute(request).updates()
                     if (updates.isEmpty()) {
@@ -57,8 +60,8 @@ class MainWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
                             if (!chats.any { it.id == chatId }) {
                                 val chat = Chat(chatId, lastSmsId)
                                 chats.add(chat)
-                                Timber.d(chat.toString())
                                 db.chatDao().insert(chat)
+                                Timber.d(chat.toString())
                             }
                         }
                     }
@@ -66,6 +69,10 @@ class MainWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
                         lastUpdateId = it.updateId()
                         preferences.lastUpdateId = lastUpdateId
                         Timber.d("New lastUpdateId is $lastUpdateId")
+                    }
+                    if (updates.size < UPD_LIMIT) {
+                        Timber.d("No more telegram updates are expected")
+                        break
                     }
                 } catch (e: Throwable) {
                     Timber.e(e)
@@ -81,7 +88,7 @@ class MainWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
                         val smsId = cursor.getLong(cursor.getColumnIndexOrThrow(Sms._ID))
                         Timber.d("Processing of smsId $smsId")
                         if (chat.nextSmsId > smsId) {
-                            Timber.d("Skipping lastSmsId is ${chat.nextSmsId}")
+                            Timber.d("Skipping nextSmsId is ${chat.nextSmsId}")
                             continue
                         }
                         val address = cursor.getString(cursor.getColumnIndexOrThrow(Sms.ADDRESS))
@@ -103,12 +110,13 @@ class MainWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
                         }
                     } catch (e: Throwable) {
                         Timber.e(e)
+                        hasErrors = true
                         break
                     }
                 } while (cursor.moveToNext())
             }
         }
-        return Result.success()
+        return if (hasErrors) Result.retry() else Result.success()
     }
 
     companion object {
@@ -116,6 +124,8 @@ class MainWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
         private const val NAME = "Main"
 
         private const val PARAM_SMS_ID = "sms_id"
+
+        private const val UPD_LIMIT = 100
 
         private val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss (Z)")
 
