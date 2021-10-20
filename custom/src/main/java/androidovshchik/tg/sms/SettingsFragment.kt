@@ -15,7 +15,7 @@ class SettingsFragment : PreferenceFragmentCompat() {
         authCode?.text = preferences.authCode
         authCode?.setOnPreferenceChangeListener { _, newValue ->
             val value = newValue.toString().trim()
-            if (preferences.authCode != value) {
+            if (value.isNotBlank() && preferences.authCode != value) {
                 preferences.authCode = value
                 authCode.text = value
                 doAsync {

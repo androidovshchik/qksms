@@ -18,48 +18,55 @@ class MainWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
         val preferences = Preferences(applicationContext)
         val minSmsId = (chats.firstOrNull()?.lastSmsId ?: preferences.lastSmsId).toString()
         contentResolver.query(Sms.Inbox.CONTENT_URI, null, "${Sms._ID} >= ?", arrayOf(minSmsId), "${Sms._ID} ASC")?.use { cursor ->
-            if (!it.moveToLast()) {
+            if (!cursor.moveToLast()) {
                 return@with Result.failure()
             }
-            preferences.lastSmsId = it.getInt(it.getColumnIndexOrThrow(Sms._ID)) + 1
+            val lastSmsId = cursor.getInt(cursor.getColumnIndexOrThrow(Sms._ID)) + 1
+            preferences.lastSmsId = lastSmsId
             val token = preferences.botToken?.trim()
             if (token.isNullOrBlank()) {
                 return@with Result.failure()
             }
             val bot = TelegramBot(token)
+            val code = preferences.authCode.trim()
+            var lastUpdateId = preferences.lastUpdateId
             while (true) {
                 try {
                     val request = GetUpdates()
                         .limit(100)
-                        .offset(preferences.lastUpdateId + 1)
+                        .offset(lastUpdateId + 1)
                         .timeout(TimeUnit.MINUTES.toMillis(1).toInt())
                     val updates = bot.execute(request).updates()
                     if (updates.isEmpty()) {
                         break
                     }
-                    val code = preferences.authCode
-                    updates.forEach {
-                        if (it.message().text().trim() == code) {
-                            val chat = Chat(it.message().chat().id(), )
-                            chats.add(chat)
-                            db.chatDao().insert(chat)
+                    updates.forEach { upd ->
+                        if (upd.message().text().trim() == code) {
+                            val chatId = upd.message().chat().id()
+                            if (!chats.any { it.id == chatId }) {
+                                val chat = Chat(chatId, lastSmsId)
+                                chats.add(chat)
+                                db.chatDao().insert(chat)
+                            }
                         }
                     }
                     updates.lastOrNull()?.let {
-                        preferences.lastUpdateId = it.updateId()
+                        lastUpdateId = it.updateId()
+                        preferences.lastUpdateId = lastUpdateId
                     }
                 } catch (e: Throwable) {
                     Timber.e(e)
+                    break
                 }
             }
             for (chat in chats) {
-                if (!it.moveToFirst()) {
+                if (!cursor.moveToFirst()) {
                     break
                 }
                 do {
                     try {
-                        val id = cursor.getInt(cursor.getColumnIndexOrThrow(Sms._ID))
-                        if (chat.lastSmsId > id) {
+                        val smsId = cursor.getInt(cursor.getColumnIndexOrThrow(Sms._ID))
+                        if (chat.lastSmsId > smsId) {
                             continue
                         }
                         val address = cursor.getString(cursor.getColumnIndexOrThrow(Sms.ADDRESS))
@@ -71,14 +78,14 @@ class MainWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
                         """.trimIndent()))
                         if (response.isOk) {
                             db.chatDao().update(chat.also {
-                                it.lastSmsId = id + 1
+                                it.lastSmsId = smsId + 1
                             })
                         }
                     } catch (e: Throwable) {
                         Timber.e(e)
                         break
                     }
-                } while (it.moveToNext())
+                } while (cursor.moveToNext())
             }
         }
         return Result.success()
