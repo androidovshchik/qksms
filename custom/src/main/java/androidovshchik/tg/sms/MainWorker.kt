@@ -2,6 +2,7 @@ package androidovshchik.tg.sms
 
 import android.content.Context
 import android.provider.Telephony.Sms
+import androidovshchik.tg.sms.ext.longBgToast
 import androidovshchik.tg.sms.local.Chat
 import androidovshchik.tg.sms.local.Preferences
 import androidx.work.*
@@ -20,18 +21,20 @@ import java.util.concurrent.TimeUnit
 class MainWorker(appContext: Context, workerParams: WorkerParameters): Worker(appContext, workerParams) {
 
     override fun doWork(): Result = with(applicationContext) {
-        var lastSmsId = inputData.getLong(PARAM_SMS_ID, 0L)
+        var lastSmsId = inputData.getLong(PARAM_SMS_ID, -1L)
         val preferences = Preferences(applicationContext)
+        val token = preferences.botToken?.trim()
+        if (token.isNullOrBlank()) {
+            Timber.w("Bot token is not set")
+            longBgToast("Не задан токен бота")
+            return@with Result.failure()
+        }
         val chats = db.chatDao().selectAll()
         Timber.d(chats.toString())
-        val minSmsId = (chats.firstOrNull()?.lastSmsId ?: lastSmsId).toString()
+        val minSmsId = (chats.firstOrNull()?.nextSmsId ?: lastSmsId).toString()
         contentResolver.query(Sms.Inbox.CONTENT_URI, null, "${Sms._ID} >= ?", arrayOf(minSmsId), "${Sms._ID} ASC")?.use { cursor ->
             if (cursor.moveToLast()) {
                 lastSmsId = cursor.getLong(cursor.getColumnIndexOrThrow(Sms._ID))
-            }
-            val token = preferences.botToken?.trim()
-            if (token.isNullOrBlank()) {
-                return@with Result.failure()
             }
             val bot = TelegramBot(token)
             val code = preferences.authCode.trim()
@@ -44,7 +47,7 @@ class MainWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
                         .offset(lastUpdateId + 1)
                     val updates = bot.execute(request).updates()
                     if (updates.isEmpty()) {
-                        Timber.d("No new messages was found")
+                        Timber.d("No more telegram updates")
                         break
                     }
                     updates.forEach { upd ->
@@ -77,8 +80,8 @@ class MainWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
                     try {
                         val smsId = cursor.getLong(cursor.getColumnIndexOrThrow(Sms._ID))
                         Timber.d("Processing of smsId $smsId")
-                        if (chat.lastSmsId > smsId) {
-                            Timber.d("Skipping lastSmsId is ${chat.lastSmsId}")
+                        if (chat.nextSmsId > smsId) {
+                            Timber.d("Skipping lastSmsId is ${chat.nextSmsId}")
                             continue
                         }
                         val address = cursor.getString(cursor.getColumnIndexOrThrow(Sms.ADDRESS))
@@ -94,7 +97,7 @@ class MainWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
                         val response = bot.execute(message.parseMode(ParseMode.Markdown))
                         if (response.isOk) {
                             db.chatDao().update(chat.also {
-                                it.lastSmsId = smsId + 1
+                                it.nextSmsId = smsId + 1
                             })
                             Timber.d("Updating $chat")
                         }
@@ -120,7 +123,7 @@ class MainWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
             val request = OneTimeWorkRequestBuilder<MainWorker>()
                 .setInputData(
                     Data.Builder()
-                        .putLong(PARAM_SMS_ID, lastSmsId ?: 0L)
+                        .putLong(PARAM_SMS_ID, lastSmsId ?: -1L)
                         .build()
                 )
                 .setBackoffCriteria(BackoffPolicy.LINEAR, 10, TimeUnit.SECONDS)

@@ -11,11 +11,11 @@ internal class Chat(
     @PrimaryKey
     @ColumnInfo(name = "c_id")
     var id: Long = 0L,
-    @ColumnInfo(name = "c_last_sms_id")
-    var lastSmsId: Long = 0L
+    @ColumnInfo(name = "c_next_sms_id")
+    var nextSmsId: Long = 0L
 ) {
 
     override fun toString(): String {
-        return "Chat(id=$id, lastSmsId=$lastSmsId)"
+        return "Chat(id=$id, nextSmsId=$nextSmsId)"
     }
 }

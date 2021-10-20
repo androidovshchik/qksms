@@ -8,7 +8,7 @@ internal abstract class ChatDao {
     @Query(
         """
         SELECT * FROM chats
-        ORDER BY c_last_sms_id ASC
+        ORDER BY c_next_sms_id ASC
     """
     )
     abstract fun selectAll(): MutableList<Chat>
