@@ -37,11 +37,11 @@ class SendWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
         for (chat in chats) {
             Timber.d("Processing of $chat")
             for (message in lastMessages) {
+                if (chat.nextMsgId > message.id) {
+                    Timber.d("Skipping for message id ${message.id}")
+                    continue
+                }
                 try {
-                    if (chat.nextMsgId > message.id) {
-                        Timber.d("Skipping for message id ${message.id}")
-                        continue
-                    }
                     Timber.d("Processing of message id ${message.id}")
                     val sendMsg = SendMessage(chat.id, """
                         ${message.address}
@@ -69,7 +69,7 @@ class SendWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
 
         private const val NAME = "Send"
 
-        private val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss [Z]")
+        private val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss Z")
 
         private val activeStates = arrayOf(State.ENQUEUED, State.RUNNING, State.BLOCKED)
 
