@@ -26,9 +26,13 @@ class SendWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
             Timber.w("There are no chats")
             return@with Result.failure()
         }
-        var hasErrors = false
         val lastMessages = db.messageDao().selectFromId(chats.first().nextMsgId)
         Timber.d(lastMessages.toString())
+        if (lastMessages.isEmpty()) {
+            Timber.w("There are no messages to send")
+            return@with Result.failure()
+        }
+        var hasErrors = false
         val bot = TelegramBot(token)
         for (chat in chats) {
             Timber.d("Processing of $chat")

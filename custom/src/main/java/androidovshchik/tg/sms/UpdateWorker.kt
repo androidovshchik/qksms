@@ -45,7 +45,7 @@ class UpdateWorker(appContext: Context, workerParams: WorkerParameters): Worker(
                             val myChat = Chat(tgChat.id(), lastMsgId + 1)
                             db.chatDao().insert(myChat)
                             Timber.d(myChat.toString())
-                            chatNames.add(tgChat.title())
+                            chatNames.add(tgChat.username())
                         } catch (e: Throwable) {
                             Timber.e(e)
                         }
