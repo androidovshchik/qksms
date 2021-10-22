@@ -31,13 +31,14 @@ class SendWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
         Timber.d(lastMessages.toString())
         val bot = TelegramBot(token)
         for (chat in chats) {
+            Timber.d("Processing of $chat")
             for (message in lastMessages) {
                 try {
-                    Timber.d("Processing of smsId $smsId")
-                    if (chat.nextMsgId > smsId) {
-                        Timber.d("Skipping nextSmsId is ${chat.nextMsgId}")
+                    if (chat.nextMsgId > message.id) {
+                        Timber.d("Skipping for message id ${message.id}")
                         continue
                     }
+                    Timber.d("Processing of message id ${message.id}")
                     val sendMsg = SendMessage(chat.id, """
                         ${message.address}
                         ```${message.text}```
@@ -66,6 +67,8 @@ class SendWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
 
         private val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss [Z]")
 
+        private val activeStates = arrayOf(State.ENQUEUED, State.RUNNING, State.BLOCKED)
+
         private val lock = Any()
 
         fun launch(context: Context) = synchronized(lock) {
@@ -74,9 +77,9 @@ class SendWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
                 .build()
             with(WorkManager.getInstance(context)) {
                 val workInfos = getWorkInfosForUniqueWork(NAME).get()
-                val count = workInfos.filter { it.state == State.ENQUEUED || it.state == State.RUNNING }
-                    .size
-                if (count < 2) {
+                Timber.d(workInfos.toString())
+                val activeCount = workInfos.filter { it.state in activeStates }.size
+                if (activeCount < 2) {
                     enqueueUniqueWork(NAME, ExistingWorkPolicy.APPEND_OR_REPLACE, request)
                 }
             }
