@@ -1,6 +1,7 @@
 package androidovshchik.tg.sms
 
 import android.content.Context
+import androidovshchik.tg.sms.ext.cancelAll
 import androidovshchik.tg.sms.local.Preferences
 import androidx.work.*
 import androidx.work.WorkInfo.State
@@ -33,7 +34,9 @@ class SendWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
             return@with Result.failure()
         }
         var hasErrors = false
-        val bot = TelegramBot(token)
+        val bot = TelegramBot.Builder(token)
+            .okHttpClient(httpClient)
+            .build()
         for (chat in chats) {
             Timber.d("Processing of $chat")
             for (message in lastMessages) {
@@ -65,6 +68,10 @@ class SendWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
         return if (hasErrors) Result.retry() else Result.success()
     }
 
+    override fun onStopped() {
+        httpClient.cancelAll()
+    }
+
     companion object {
 
         private const val NAME = "Send"
@@ -85,6 +92,7 @@ class SendWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
                 val activeCount = workInfos.filter { it.state in activeStates }.size
                 if (activeCount < 2) {
                     enqueueUniqueWork(NAME, ExistingWorkPolicy.APPEND_OR_REPLACE, request)
+                        .result.get()
                 }
             }
         }

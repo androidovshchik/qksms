@@ -8,11 +8,15 @@ import androidovshchik.tg.sms.local.Message
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.jakewharton.threetenabp.AndroidThreeTen
+import okhttp3.OkHttpClient
 import org.threeten.bp.Instant
 import org.threeten.bp.ZoneOffset
 import org.threeten.bp.ZonedDateTime
 
 internal lateinit var db: Database
+
+internal val httpClient = OkHttpClient.Builder()
+    .build()
 
 object Custom {
 
