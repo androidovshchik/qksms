@@ -13,7 +13,7 @@ internal abstract class ChatDao {
     )
     abstract fun selectAll(): MutableList<Chat>
 
-    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    @Insert(onConflict = OnConflictStrategy.ABORT)
     abstract fun insert(item: Chat)
 
     @Update(onConflict = OnConflictStrategy.IGNORE)

@@ -19,8 +19,8 @@ class UpdateWorker(appContext: Context, workerParams: WorkerParameters): Worker(
             longBgToast("Не задан токен бота")
             return@with Result.failure()
         }
-        val lastMsgId = db.messageDao().getLastId() ?: 0L
-        Timber.d("Db lastMsgId is $lastMsgId")
+        var hasErrors = false
+        val chatNames = mutableListOf<String?>()
         val bot = TelegramBot(token)
         val code = preferences.authCode.trim()
         var lastUpdateId = preferences.lastUpdateId
@@ -35,13 +35,20 @@ class UpdateWorker(appContext: Context, workerParams: WorkerParameters): Worker(
                     Timber.d("No more telegram updates")
                     break
                 }
+                val lastMsgId = db.messageDao().getLastId() ?: -1L
+                Timber.d("Now lastMsgId is $lastMsgId")
                 updates.forEach { upd ->
                     Timber.d(upd.toString())
                     if (upd.message().text()?.trim() == code) {
-                        val chatId = upd.message().chat().id()
-                        val chat = Chat(chatId, lastMsgId)
-                        db.chatDao().insert(chat)
-                        Timber.d(chat.toString())
+                        try {
+                            val tgChat = upd.message().chat()
+                            val myChat = Chat(tgChat.id(), lastMsgId + 1)
+                            db.chatDao().insert(myChat)
+                            Timber.d(myChat.toString())
+                            chatNames.add(tgChat.title())
+                        } catch (e: Throwable) {
+                            Timber.e(e)
+                        }
                     }
                 }
                 updates.lastOrNull()?.let {
@@ -51,12 +58,15 @@ class UpdateWorker(appContext: Context, workerParams: WorkerParameters): Worker(
                 }
             } catch (e: Throwable) {
                 Timber.e(e)
-                longBgToast("Не удалось выполнить обновление")
+                hasErrors = true
                 break
             }
         }
-        longBgToast("Не задан токен бота")
-        return Result.success()
+        longBgToast("""
+            Добавлены чаты: $chatNames.
+            ${if (hasErrors) "Ошибка(и) при обновлении" else "Без ошибок"}
+        """.trimIndent())
+        return if (hasErrors) Result.failure() else Result.success()
     }
 
     companion object {
