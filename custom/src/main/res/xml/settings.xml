@@ -13,4 +13,8 @@
         android:singleLine="true"
         android:title="Код авторизации" />
 
+    <Preference
+        android:key="update_messages"
+        android:title="Проверить сообщения" />
+
 </androidx.preference.PreferenceScreen>
