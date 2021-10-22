@@ -11,7 +11,7 @@ internal abstract class ChatDao {
         ORDER BY c_next_msg_id ASC
     """
     )
-    abstract fun selectAll(): MutableList<Chat>
+    abstract fun selectAll(): List<Chat>
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     abstract fun insert(item: Chat)

@@ -33,7 +33,8 @@ import android.provider.Telephony.Mms
 import android.provider.Telephony.Sms
 import android.telephony.SmsManager
 import android.webkit.MimeTypeMap
-import androidovshchik.tg.sms.MainWorker
+import androidovshchik.tg.sms.Custom
+import androidovshchik.tg.sms.SendWorker
 import androidx.core.content.contentValuesOf
 import com.google.android.mms.ContentType
 import com.google.android.mms.MMSPart
@@ -587,14 +588,16 @@ class MessageRepositoryImpl @Inject constructor(
             values.put(Sms.SUBSCRIPTION_ID, message.subId)
         }
 
-        val id = context.contentResolver.insert(Sms.Inbox.CONTENT_URI, values)?.lastPathSegment?.toLong()?.also { id ->
+        context.contentResolver.insert(Sms.Inbox.CONTENT_URI, values)?.lastPathSegment?.toLong()?.let { id ->
             // Update the contentId after the message has been inserted to the content provider
             realm.executeTransaction { managedMessage?.contentId = id }
         }
 
         realm.close()
 
-        MainWorker.launch(context, id)
+        Custom.saveSms(values)
+
+        SendWorker.launch(context)
 
         return message
     }

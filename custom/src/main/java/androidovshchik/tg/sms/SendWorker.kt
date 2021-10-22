@@ -2,7 +2,6 @@ package androidovshchik.tg.sms
 
 import android.content.Context
 import android.provider.Telephony.Sms
-import androidovshchik.tg.sms.ext.longBgToast
 import androidovshchik.tg.sms.local.Preferences
 import androidx.work.*
 import androidx.work.WorkInfo.State
@@ -20,24 +19,23 @@ import java.util.concurrent.TimeUnit
 class SendWorker(appContext: Context, workerParams: WorkerParameters): Worker(appContext, workerParams) {
 
     override fun doWork(): Result = with(applicationContext) {
-        val lastSmsId = inputData.getLong(PARAM_SMS_ID, -1L)
-        Timber.d("Input lastSmsId is $lastSmsId")
-        var hasErrors = false
         val preferences = Preferences(applicationContext)
         val token = preferences.botToken?.trim()
         if (token.isNullOrBlank()) {
             Timber.w("Bot token is not set")
-            longBgToast("Не задан токен бота")
             return@with Result.failure()
         }
         val chats = db.chatDao().selectAll()
         Timber.d(chats.toString())
-        val minSmsId = (chats.firstOrNull()?.nextMsgId ?: lastSmsId).toString()
+        if (chats.isEmpty()) {
+            Timber.w("There are no chats")
+            return@with Result.failure()
+        }
+        var hasErrors = false
+        val lastMessages = db.messageDao().selectFromId(chats.first().nextMsgId)
+        Timber.d(lastMessages.toString())
         val bot = TelegramBot(token)
         for (chat in chats) {
-            if (!cursor.moveToFirst()) {
-                break
-            }
             do {
                 try {
                     val smsId = cursor.getLong(cursor.getColumnIndexOrThrow(Sms._ID))
@@ -77,19 +75,12 @@ class SendWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
 
         private const val NAME = "Send"
 
-        private const val PARAM_SMS_ID = "sms_id"
-
         private val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss (Z)")
 
         private val lock = Any()
 
-        fun launch(context: Context, lastSmsId: Long?) = synchronized(lock) {
+        fun launch(context: Context) = synchronized(lock) {
             val request = OneTimeWorkRequestBuilder<SendWorker>()
-                .setInputData(
-                    Data.Builder()
-                        .putLong(PARAM_SMS_ID, lastSmsId ?: -1L)
-                        .build()
-                )
                 .setBackoffCriteria(BackoffPolicy.LINEAR, 10, TimeUnit.SECONDS)
                 .build()
             with(WorkManager.getInstance(context)) {

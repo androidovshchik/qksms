@@ -27,5 +27,5 @@ internal abstract class MessageDao {
     abstract fun getLastId(): Long?
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    abstract fun insert(item: Chat)
+    abstract fun insert(item: Message)
 }
