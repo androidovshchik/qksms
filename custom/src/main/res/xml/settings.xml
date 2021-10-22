@@ -14,7 +14,7 @@
         android:title="Код авторизации" />
 
     <Preference
-        android:key="update_messages"
+        android:key="update_inbox"
         android:title="Проверить сообщения" />
 
 </androidx.preference.PreferenceScreen>
