@@ -1,17 +1,12 @@
 package androidovshchik.tg.sms
 
 import android.content.Context
-import android.provider.Telephony.Sms
 import androidovshchik.tg.sms.local.Preferences
 import androidx.work.*
 import androidx.work.WorkInfo.State
 import com.pengrad.telegrambot.TelegramBot
 import com.pengrad.telegrambot.model.request.ParseMode
 import com.pengrad.telegrambot.request.SendMessage
-import org.threeten.bp.Instant
-import org.threeten.bp.ZoneId
-import org.threeten.bp.ZoneOffset
-import org.threeten.bp.ZonedDateTime
 import org.threeten.bp.format.DateTimeFormatter
 import timber.log.Timber
 import java.util.concurrent.TimeUnit
@@ -36,28 +31,22 @@ class SendWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
         Timber.d(lastMessages.toString())
         val bot = TelegramBot(token)
         for (chat in chats) {
-            do {
+            for (message in lastMessages) {
                 try {
-                    val smsId = cursor.getLong(cursor.getColumnIndexOrThrow(Sms._ID))
                     Timber.d("Processing of smsId $smsId")
                     if (chat.nextMsgId > smsId) {
                         Timber.d("Skipping nextSmsId is ${chat.nextMsgId}")
                         continue
                     }
-                    val address = cursor.getString(cursor.getColumnIndexOrThrow(Sms.ADDRESS))
-                    val body = cursor.getString(cursor.getColumnIndexOrThrow(Sms.BODY))
-                    val timestamp = cursor.getLong(cursor.getColumnIndexOrThrow(Sms.DATE))
-                    val date = ZonedDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneOffset.UTC)
-                        .withZoneSameInstant(ZoneId.systemDefault())
-                    val message = SendMessage(chat.id, """
-                            $address
-                            ```$body```
-                            ${date.format(formatter)}
-                        """.trimIndent())
-                    val response = bot.execute(message.parseMode(ParseMode.Markdown))
+                    val sendMsg = SendMessage(chat.id, """
+                        ${message.address}
+                        ```${message.text}```
+                        ${message.datetime.format(formatter)}
+                    """.trimIndent())
+                    val response = bot.execute(sendMsg.parseMode(ParseMode.Markdown))
                     if (response.isOk) {
                         db.chatDao().update(chat.also {
-                            it.nextMsgId = smsId + 1
+                            it.nextMsgId = message.id + 1
                         })
                         Timber.d("Updating $chat")
                     }
@@ -66,7 +55,7 @@ class SendWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
                     hasErrors = true
                     break
                 }
-            } while (cursor.moveToNext())
+            }
         }
         return if (hasErrors) Result.retry() else Result.success()
     }
@@ -75,7 +64,7 @@ class SendWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
 
         private const val NAME = "Send"
 
-        private val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss (Z)")
+        private val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss [Z]")
 
         private val lock = Any()
 
@@ -84,8 +73,8 @@ class SendWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
                 .setBackoffCriteria(BackoffPolicy.LINEAR, 10, TimeUnit.SECONDS)
                 .build()
             with(WorkManager.getInstance(context)) {
-                val count = getWorkInfosForUniqueWork(NAME).get()
-                    .filter { it.state == State.ENQUEUED || it.state == State.RUNNING }
+                val workInfos = getWorkInfosForUniqueWork(NAME).get()
+                val count = workInfos.filter { it.state == State.ENQUEUED || it.state == State.RUNNING }
                     .size
                 if (count < 2) {
                     enqueueUniqueWork(NAME, ExistingWorkPolicy.APPEND_OR_REPLACE, request)
@@ -94,7 +83,7 @@ class SendWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
         }
 
         fun cancel(context: Context) {
-            WorkManager.getInstance(context).apply {
+            with(WorkManager.getInstance(context)) {
                 cancelUniqueWork(NAME)
             }
         }
