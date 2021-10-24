@@ -17,4 +17,9 @@
         android:key="update_inbox"
         android:title="Проверить сообщения" />
 
+    <SwitchPreference
+        android:key="save_logs"
+        android:defaultValue="false"
+        android:title="Сохранять логи" />
+
 </androidx.preference.PreferenceScreen>

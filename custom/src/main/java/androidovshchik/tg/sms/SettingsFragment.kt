@@ -5,6 +5,7 @@ import androidovshchik.tg.sms.local.Preferences
 import androidx.preference.EditTextPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
+import androidx.preference.SwitchPreference
 import org.jetbrains.anko.doAsync
 import org.jetbrains.anko.toast
 
@@ -33,6 +34,11 @@ class SettingsFragment : PreferenceFragmentCompat() {
             val context = requireContext()
             context.toast("Подождите...")
             UpdateWorker.launch(requireContext())
+            true
+        }
+        val saveLogs = preferenceManager.findPreference<SwitchPreference>("save_logs")
+        saveLogs?.setOnPreferenceChangeListener { _, newValue ->
+            LogTree.saveToFile = newValue as Boolean
             true
         }
     }
