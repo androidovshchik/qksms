@@ -39,7 +39,7 @@ class UpdateWorker(appContext: Context, workerParams: WorkerParameters): Worker(
                 Timber.d("Now lastMsgId is $lastMsgId")
                 updates.forEach { upd ->
                     Timber.d(upd.toString())
-                    if (upd.message().text()?.trim() == code) {
+                    if (upd.message()?.text()?.trim() == code) {
                         try {
                             val tgChat = upd.message().chat()
                             val myChat = Chat(tgChat.id(), lastMsgId + 1)
