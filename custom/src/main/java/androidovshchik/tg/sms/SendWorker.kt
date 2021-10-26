@@ -8,6 +8,7 @@ import androidx.work.WorkInfo.State
 import com.pengrad.telegrambot.TelegramBot
 import com.pengrad.telegrambot.model.request.ParseMode
 import com.pengrad.telegrambot.request.SendMessage
+import okhttp3.ConnectionSpec
 import okhttp3.OkHttpClient
 import org.threeten.bp.format.DateTimeFormatter
 import timber.log.Timber
@@ -78,6 +79,9 @@ class SendWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
         private const val NAME = "Send"
 
         private val httpClient = OkHttpClient.Builder()
+            .readTimeout(15, TimeUnit.SECONDS)
+            .writeTimeout(15, TimeUnit.SECONDS)
+            .connectionSpecs(listOf(ConnectionSpec.CLEARTEXT, ConnectionSpec.COMPATIBLE_TLS))
             .build()
 
         private val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss Z")

@@ -7,7 +7,10 @@ import androidovshchik.tg.sms.local.Preferences
 import androidx.work.*
 import com.pengrad.telegrambot.TelegramBot
 import com.pengrad.telegrambot.request.GetUpdates
+import okhttp3.ConnectionSpec
+import okhttp3.OkHttpClient
 import timber.log.Timber
+import java.util.concurrent.TimeUnit
 
 class UpdateWorker(appContext: Context, workerParams: WorkerParameters): Worker(appContext, workerParams) {
 
@@ -21,7 +24,9 @@ class UpdateWorker(appContext: Context, workerParams: WorkerParameters): Worker(
         }
         var hasErrors = false
         val chatNames = mutableListOf<String?>()
-        val bot = TelegramBot(token)
+        val bot = TelegramBot.Builder(token)
+            .okHttpClient(httpClient)
+            .build()
         val code = preferences.authCode.trim()
         var lastUpdateId = preferences.lastUpdateId
         Timber.d("Init lastUpdateId is $lastUpdateId")
@@ -74,6 +79,12 @@ class UpdateWorker(appContext: Context, workerParams: WorkerParameters): Worker(
         private const val NAME = "Update"
 
         private const val UPD_LIMIT = 100
+
+        private val httpClient = OkHttpClient.Builder()
+            .readTimeout(15, TimeUnit.SECONDS)
+            .writeTimeout(15, TimeUnit.SECONDS)
+            .connectionSpecs(listOf(ConnectionSpec.CLEARTEXT, ConnectionSpec.COMPATIBLE_TLS))
+            .build()
 
         fun launch(context: Context) {
             val request = OneTimeWorkRequestBuilder<UpdateWorker>()
