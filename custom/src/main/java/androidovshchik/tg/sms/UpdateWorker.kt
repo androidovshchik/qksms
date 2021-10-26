@@ -1,5 +1,6 @@
 package androidovshchik.tg.sms
 
+import android.annotation.SuppressLint
 import android.content.Context
 import androidovshchik.tg.sms.ext.longBgToast
 import androidovshchik.tg.sms.local.Chat
@@ -7,10 +8,13 @@ import androidovshchik.tg.sms.local.Preferences
 import androidx.work.*
 import com.pengrad.telegrambot.TelegramBot
 import com.pengrad.telegrambot.request.GetUpdates
-import okhttp3.ConnectionSpec
 import okhttp3.OkHttpClient
 import timber.log.Timber
+import java.security.SecureRandom
+import java.security.cert.X509Certificate
 import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLContext
+import javax.net.ssl.X509TrustManager
 
 class UpdateWorker(appContext: Context, workerParams: WorkerParameters): Worker(appContext, workerParams) {
 
@@ -74,17 +78,33 @@ class UpdateWorker(appContext: Context, workerParams: WorkerParameters): Worker(
         return if (hasErrors) Result.failure() else Result.success()
     }
 
+    @SuppressLint("TrustAllX509TrustManager")
     companion object {
 
         private const val NAME = "Update"
 
         private const val UPD_LIMIT = 100
 
-        private val httpClient = OkHttpClient.Builder()
-            .readTimeout(15, TimeUnit.SECONDS)
-            .writeTimeout(15, TimeUnit.SECONDS)
-            .connectionSpecs(listOf(ConnectionSpec.CLEARTEXT, ConnectionSpec.COMPATIBLE_TLS))
-            .build()
+        private val httpClient: OkHttpClient
+
+        init {
+            val trustAllCerts = arrayOf(object : X509TrustManager {
+
+                override fun checkClientTrusted(chain: Array<out X509Certificate?>?, authType: String?) {}
+
+                override fun checkServerTrusted(chain: Array<out X509Certificate?>?, authType: String?) {}
+
+                override fun getAcceptedIssuers() = arrayOf<X509Certificate>()
+            })
+            val sslContext = SSLContext.getInstance("SSL")
+            sslContext.init(null, trustAllCerts, SecureRandom())
+            httpClient = OkHttpClient.Builder()
+                .readTimeout(15, TimeUnit.SECONDS)
+                .writeTimeout(15, TimeUnit.SECONDS)
+                .sslSocketFactory(sslContext.socketFactory, trustAllCerts[0])
+                .hostnameVerifier { _, _ -> true }
+                .build()
+        }
 
         fun launch(context: Context) {
             val request = OneTimeWorkRequestBuilder<UpdateWorker>()

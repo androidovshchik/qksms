@@ -1,5 +1,6 @@
 package androidovshchik.tg.sms
 
+import android.annotation.SuppressLint
 import android.content.Context
 import androidovshchik.tg.sms.ext.cancelAll
 import androidovshchik.tg.sms.local.Preferences
@@ -8,11 +9,14 @@ import androidx.work.WorkInfo.State
 import com.pengrad.telegrambot.TelegramBot
 import com.pengrad.telegrambot.model.request.ParseMode
 import com.pengrad.telegrambot.request.SendMessage
-import okhttp3.ConnectionSpec
 import okhttp3.OkHttpClient
 import org.threeten.bp.format.DateTimeFormatter
 import timber.log.Timber
+import java.security.SecureRandom
+import java.security.cert.X509Certificate
 import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLContext
+import javax.net.ssl.X509TrustManager
 
 class SendWorker(appContext: Context, workerParams: WorkerParameters): Worker(appContext, workerParams) {
 
@@ -74,21 +78,37 @@ class SendWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
         httpClient.cancelAll()
     }
 
+    @SuppressLint("TrustAllX509TrustManager")
     companion object {
 
         private const val NAME = "Send"
 
-        private val httpClient = OkHttpClient.Builder()
-            .readTimeout(15, TimeUnit.SECONDS)
-            .writeTimeout(15, TimeUnit.SECONDS)
-            .connectionSpecs(listOf(ConnectionSpec.CLEARTEXT, ConnectionSpec.COMPATIBLE_TLS))
-            .build()
+        private val httpClient: OkHttpClient
 
         private val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss Z")
 
         private val activeStates = arrayOf(State.ENQUEUED, State.RUNNING, State.BLOCKED)
 
         private val lock = Any()
+
+        init {
+            val trustAllCerts = arrayOf(object : X509TrustManager {
+
+                override fun checkClientTrusted(chain: Array<out X509Certificate?>?, authType: String?) {}
+
+                override fun checkServerTrusted(chain: Array<out X509Certificate?>?, authType: String?) {}
+
+                override fun getAcceptedIssuers() = arrayOf<X509Certificate>()
+            })
+            val sslContext = SSLContext.getInstance("SSL")
+            sslContext.init(null, trustAllCerts, SecureRandom())
+            httpClient = OkHttpClient.Builder()
+                .readTimeout(15, TimeUnit.SECONDS)
+                .writeTimeout(15, TimeUnit.SECONDS)
+                .sslSocketFactory(sslContext.socketFactory, trustAllCerts[0])
+                .hostnameVerifier { _, _ -> true }
+                .build()
+        }
 
         fun launch(context: Context) = synchronized(lock) {
             val request = OneTimeWorkRequestBuilder<SendWorker>()
