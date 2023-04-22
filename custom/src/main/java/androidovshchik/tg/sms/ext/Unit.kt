@@ -28,6 +28,10 @@ fun isOreoMR1() = Build.VERSION.SDK_INT == Build.VERSION_CODES.O_MR1
 
 fun isPie() = Build.VERSION.SDK_INT == Build.VERSION_CODES.P
 
+fun isQ() = Build.VERSION.SDK_INT == Build.VERSION_CODES.Q
+
+fun isR() = Build.VERSION.SDK_INT == Build.VERSION_CODES.R
+
 fun isKitkatPlus() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT
 
 fun isKitkatWatchPlus() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT_WATCH
@@ -47,3 +51,7 @@ fun isOreoPlus() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
 fun isOreoMR1Plus() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1
 
 fun isPiePlus() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
+
+fun isQPlus() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+
+fun isRPlus() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R

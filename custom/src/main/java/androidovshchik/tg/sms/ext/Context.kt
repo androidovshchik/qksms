@@ -4,10 +4,7 @@ package androidovshchik.tg.sms.ext
 
 import android.app.Activity
 import android.app.PendingIntent
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.ContextWrapper
-import android.content.Intent
+import android.content.*
 import android.content.pm.PackageManager
 import android.provider.Telephony
 import android.widget.Toast
@@ -16,6 +13,8 @@ import org.jetbrains.anko.intentFor
 
 val Context.isDefaultSmsApp: Boolean
     get() = Telephony.Sms.getDefaultSmsPackage(applicationContext) == packageName
+
+inline fun <reified T> Context.getComponent() = ComponentName(applicationContext, T::class.java)
 
 fun Context.bgToast(message: String) = sendBroadcast(intentFor<ToastReceiver>().apply {
     putExtra(ToastReceiver.EXTRA_MESSAGE, message)
