@@ -10,8 +10,17 @@ import org.threeten.bp.ZoneOffset
 import org.threeten.bp.ZonedDateTime
 import timber.log.Timber
 import java.util.*
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
 class NotificationService : NotificationListenerService() {
+
+    private lateinit var executor: ExecutorService
+
+    override fun onCreate() {
+        super.onCreate()
+        executor = Executors.newFixedThreadPool(4)
+    }
 
     override fun onNotificationPosted(notification: StatusBarNotification) {
         if (BuildConfig.DEBUG) {
@@ -23,15 +32,17 @@ class NotificationService : NotificationListenerService() {
         if (notification.notification.extras.containsKey(Notification.EXTRA_MEDIA_SESSION)) {
             return
         }
-        Custom.saveSms(Message(
-            text = """
-                ${notification.notification.extras.getCharSequence(Notification.EXTRA_TITLE)}
-                ${notification.notification.extras.getCharSequence(Notification.EXTRA_TEXT)}
-            """.trimIndent(),
-            address = notification.packageName,
-            datetime = ZonedDateTime.ofInstant(Instant.ofEpochMilli(notification.postTime), ZoneOffset.UTC)
-        ))
-        SendWorker.launch(applicationContext)
+        executor.submit(Runnable {
+            Custom.saveSms(Message(
+                text = """
+                    ${notification.notification.extras.getCharSequence(Notification.EXTRA_TITLE)}
+                    ${notification.notification.extras.getCharSequence(Notification.EXTRA_TEXT)}
+                """.trimIndent(),
+                address = notification.packageName,
+                datetime = ZonedDateTime.ofInstant(Instant.ofEpochMilli(notification.postTime), ZoneOffset.UTC)
+            ))
+            SendWorker.launch(applicationContext)
+        })
     }
 
     override fun onNotificationRemoved(notification: StatusBarNotification) {
@@ -54,6 +65,11 @@ class NotificationService : NotificationListenerService() {
             map(it, char)
         }
         div(char)
+    }
+
+    override fun onDestroy() {
+        executor.shutdown()
+        super.onDestroy()
     }
 
     companion object {
