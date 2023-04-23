@@ -9,7 +9,7 @@ import org.threeten.bp.format.DateTimeFormatter
 @Entity(
     tableName = "messages"
 )
-internal class Message(
+class Message(
     @PrimaryKey(autoGenerate = true)
     @ColumnInfo(name = "m_id")
     var id: Long = 0L,

@@ -48,11 +48,14 @@ object Custom {
     }
 
     fun saveSms(values: ContentValues) {
-        val timestamp = values.getAsLong(Sms.DATE_SENT)
-        db.messageDao().insert(Message(
+        saveSms(Message(
             text = values.getAsString(Sms.BODY),
             address = values.getAsString(Sms.ADDRESS),
-            datetime = ZonedDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneOffset.UTC)
+            datetime = ZonedDateTime.ofInstant(Instant.ofEpochMilli(values.getAsLong(Sms.DATE_SENT)), ZoneOffset.UTC)
         ))
+    }
+
+    fun saveSms(message: Message) {
+        db.messageDao().insert(message)
     }
 }

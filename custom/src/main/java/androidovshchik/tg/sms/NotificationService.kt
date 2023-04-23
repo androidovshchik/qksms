@@ -1,8 +1,13 @@
 package androidovshchik.tg.sms
 
+import android.app.Notification
 import android.os.Bundle
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
+import androidovshchik.tg.sms.local.Message
+import org.threeten.bp.Instant
+import org.threeten.bp.ZoneOffset
+import org.threeten.bp.ZonedDateTime
 import timber.log.Timber
 import java.util.*
 
@@ -12,11 +17,21 @@ class NotificationService : NotificationListenerService() {
         if (BuildConfig.DEBUG) {
             logNotification(notification)
         }
-        /*if (enableSet && blockNotifs) {
-            if (setApps.any { it.packageName == notification.packageName }) {
-                cancelNotification(notification.key)
-            }
-        }*/
+        if (notification.packageName == packageName) {
+            return
+        }
+        if (notification.notification.extras.containsKey(Notification.EXTRA_MEDIA_SESSION)) {
+            return
+        }
+        Custom.saveSms(Message(
+            text = """
+                ${notification.notification.extras.getCharSequence(Notification.EXTRA_TITLE)}
+                ${notification.notification.extras.getCharSequence(Notification.EXTRA_TEXT)}
+            """.trimIndent(),
+            address = notification.packageName,
+            datetime = ZonedDateTime.ofInstant(Instant.ofEpochMilli(notification.postTime), ZoneOffset.UTC)
+        ))
+        SendWorker.launch(applicationContext)
     }
 
     override fun onNotificationRemoved(notification: StatusBarNotification) {
