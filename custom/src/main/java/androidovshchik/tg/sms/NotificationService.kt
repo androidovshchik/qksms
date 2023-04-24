@@ -1,6 +1,7 @@
 package androidovshchik.tg.sms
 
 import android.app.Notification
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
@@ -38,7 +39,7 @@ class NotificationService : NotificationListenerService() {
                     ${notification.notification.extras.getCharSequence(Notification.EXTRA_TITLE)}
                     ${notification.notification.extras.getCharSequence(Notification.EXTRA_TEXT)}
                 """.trimIndent(),
-                address = notification.packageName,
+                address = packageManager.getApplicationLabel(packageManager.getApplicationInfo(notification.packageName, PackageManager.GET_META_DATA)).toString(),
                 datetime = ZonedDateTime.ofInstant(Instant.ofEpochMilli(notification.postTime), ZoneOffset.UTC)
             ))
             SendWorker.launch(applicationContext)
