@@ -25,9 +25,18 @@ class NotificationService : NotificationListenerService() {
 
     override fun onNotificationPosted(notification: StatusBarNotification) {
         if (BuildConfig.DEBUG) {
-            logNotification(notification)
+            //logNotification(notification)
         }
         if (notification.packageName == packageName) {
+            return
+        }
+        if (notification.packageName.startsWith("com.xiaomi")) {
+            return
+        }
+        if (notification.packageName.startsWith("com.miui")) {
+            return
+        }
+        if (notification.packageName.startsWith("com.google.android")) {
             return
         }
         if (notification.notification.extras.containsKey(Notification.EXTRA_MEDIA_SESSION)) {

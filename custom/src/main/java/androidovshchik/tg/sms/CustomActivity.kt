@@ -51,6 +51,7 @@ class CustomActivity : AppCompatActivity() {
             }
         }
     }
+
     private fun hasNotificationPermission(): Boolean {
         val listeners = NotificationManagerCompat.getEnabledListenerPackages(applicationContext)
         return listeners.contains(packageName)

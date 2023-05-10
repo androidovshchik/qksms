@@ -1,7 +1,10 @@
 package androidovshchik.tg.sms
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.ContentValues
 import android.content.Context
+import android.os.Build
 import android.provider.Telephony.Sms
 import androidovshchik.tg.sms.local.Database
 import androidovshchik.tg.sms.local.Message
@@ -15,6 +18,7 @@ import com.elvishew.xlog.printer.file.FilePrinter
 import com.elvishew.xlog.printer.file.backup.NeverBackupStrategy
 import com.elvishew.xlog.printer.file.naming.DateFileNameGenerator
 import com.jakewharton.threetenabp.AndroidThreeTen
+import org.jetbrains.anko.notificationManager
 import org.threeten.bp.Instant
 import org.threeten.bp.ZoneOffset
 import org.threeten.bp.ZonedDateTime
@@ -25,6 +29,10 @@ internal lateinit var db: Database
 object Custom {
 
     fun init(context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel("send", "Send", NotificationManager.IMPORTANCE_LOW)
+            context.notificationManager.createNotificationChannel(channel)
+        }
         db = Room.databaseBuilder(context, Database::class.java, "custom.db")
             .fallbackToDestructiveMigration()
             .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
