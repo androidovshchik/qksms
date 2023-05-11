@@ -1,15 +1,18 @@
 package androidovshchik.tg.sms
 
 import android.annotation.SuppressLint
+import android.app.Notification
 import android.content.Context
 import androidovshchik.tg.sms.ext.cancelAll
 import androidovshchik.tg.sms.local.Preferences
+import androidx.core.app.NotificationCompat
 import androidx.work.*
 import androidx.work.WorkInfo.State
 import com.pengrad.telegrambot.TelegramBot
 import com.pengrad.telegrambot.model.request.ParseMode
 import com.pengrad.telegrambot.request.SendMessage
 import okhttp3.OkHttpClient
+import org.jetbrains.anko.notificationManager
 import org.threeten.bp.format.DateTimeFormatter
 import timber.log.Timber
 import java.security.SecureRandom
@@ -21,6 +24,7 @@ import javax.net.ssl.X509TrustManager
 class SendWorker(appContext: Context, workerParams: WorkerParameters): Worker(appContext, workerParams) {
 
     override fun doWork(): Result = with(applicationContext) {
+        setForegroundAsync(ForegroundInfo(NOTIFICATION_ID, createNotification()))
         val preferences = Preferences(applicationContext)
         val token = preferences.botToken?.trim()
         if (token.isNullOrBlank()) {
@@ -43,13 +47,14 @@ class SendWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
         val bot = TelegramBot.Builder(token)
             .okHttpClient(httpClient)
             .build()
-        for (chat in chats) {
+        for ((i, chat) in chats.withIndex()) {
             Timber.d("Processing of $chat")
-            for (message in lastMessages) {
+            for ((j, message) in lastMessages.withIndex()) {
                 if (chat.nextMsgId > message.id) {
                     Timber.d("Skipping for message id ${message.id}")
                     continue
                 }
+                notificationManager.notify(NOTIFICATION_ID, createNotification(j + 1, lastMessages.size, i + 1, chats.size))
                 try {
                     Timber.d("Processing of message id ${message.id}")
                     val sendMsg = SendMessage(chat.id, """
@@ -74,6 +79,17 @@ class SendWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
         return if (hasErrors) Result.retry() else Result.success()
     }
 
+    private fun createNotification(msgIndex: Int = 0, msgCount: Int = 0, chatIndex: Int = 0, chatCount: Int = 0): Notification {
+        return NotificationCompat.Builder(applicationContext, "send")
+            .setSmallIcon(R.drawable.baseline_send_24)
+            .setTicker("Отправка...")
+            .setContentTitle("Идет отправка...")
+            .setContentText("Сообщение $msgIndex из $msgCount для чата $chatIndex из $chatCount")
+            .setProgress(0, 100, true)
+            .setOngoing(true)
+            .build()
+    }
+
     override fun onStopped() {
         httpClient.cancelAll()
     }
@@ -82,6 +98,8 @@ class SendWorker(appContext: Context, workerParams: WorkerParameters): Worker(ap
     companion object {
 
         private const val NAME = "Send"
+
+        private const val NOTIFICATION_ID = 101
 
         private val httpClient: OkHttpClient
 

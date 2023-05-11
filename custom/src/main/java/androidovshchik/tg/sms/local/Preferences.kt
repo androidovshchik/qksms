@@ -19,5 +19,5 @@ class Preferences(context: Context) : KotprefModel(context) {
 
     var saveLogs by booleanPref(false, "save_logs")
 
-    var lastUpdateId by intPref(-1, "last_update_id")
+    var lastUpdateId by intPref(-1, "last_update_id", true)
 }
